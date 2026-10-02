@@ -1,1 +1,4 @@
 docs/github-streak-widget-guide.md
+__pycache__/
+*.pyc
+preview/
