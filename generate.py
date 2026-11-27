@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from github_api import fetch_days
 from render import render_svg
@@ -22,11 +22,22 @@ def fetch_streak_days(login, token, today, fetch=fetch_days):
         end = start - timedelta(days=1)
 
 
+def load_config(env):
+    missing = [name for name in ("GITHUB_USER", "GH_TOKEN") if not env.get(name)]
+    if missing:
+        raise SystemExit(f"Missing required environment variable(s): {', '.join(missing)}")
+    # The workflow passes an unset repo variable as an empty string, so treat it as UTC.
+    tz_name = env.get("STREAK_TZ")
+    try:
+        tz = ZoneInfo(tz_name) if tz_name else timezone.utc
+    except (ZoneInfoNotFoundError, ValueError):
+        raise SystemExit(f"Unknown STREAK_TZ {tz_name!r}; use an IANA name like 'Asia/Kolkata'")
+    return env["GITHUB_USER"], env["GH_TOKEN"], tz
+
+
 def main():
-    login = os.environ["GITHUB_USER"]
-    token = os.environ["GH_TOKEN"]
-    tz_name = os.environ.get("STREAK_TZ")
-    today = datetime.now(ZoneInfo(tz_name) if tz_name else timezone.utc).date()
+    login, token, tz = load_config(os.environ)
+    today = datetime.now(tz).date()
 
     days = fetch_streak_days(login, token, today)
     streak = current_streak(days, today)
