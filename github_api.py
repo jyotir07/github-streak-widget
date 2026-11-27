@@ -1,4 +1,6 @@
 import json
+import time as time_module
+import urllib.error
 import urllib.request
 from datetime import date, datetime, time, timezone
 
@@ -16,9 +18,11 @@ query($login: String!, $from: DateTime!, $to: DateTime!) {
   }
 }
 """
+ATTEMPTS = 3
+RETRY_STATUSES = {429, 500, 502, 503, 504}
 
 
-def fetch_days(login, token, start, end):
+def fetch_days(login, token, start, end, urlopen=urllib.request.urlopen, sleep=time_module.sleep):
     variables = {
         "login": login,
         "from": datetime.combine(start, time(0, 0), timezone.utc).isoformat(),
@@ -33,8 +37,17 @@ def fetch_days(login, token, start, end):
             "User-Agent": "github-streak-widget",
         },
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return parse_days(json.loads(response.read()), login)
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            with urlopen(request, timeout=30) as response:
+                return parse_days(json.loads(response.read()), login)
+        except urllib.error.HTTPError as error:
+            if error.code not in RETRY_STATUSES or attempt == ATTEMPTS:
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == ATTEMPTS:
+                raise
+        sleep(2**attempt)
 
 
 def parse_days(result, login):
