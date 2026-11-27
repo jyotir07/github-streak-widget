@@ -1,7 +1,7 @@
 import unittest
-from datetime import date, timedelta
+from datetime import date, timedelta, timezone
 
-from generate import fetch_streak_days
+from generate import fetch_streak_days, load_config
 from streak import Day, current_streak
 
 TODAY = date(2026, 10, 2)
@@ -40,6 +40,24 @@ class FetchStreakDaysTest(unittest.TestCase):
         fetch_streak_days("u", "t", TODAY, fetch=fetch)
         for start, end in calls:
             self.assertLessEqual((end - start).days, 364)
+
+
+class LoadConfigTest(unittest.TestCase):
+    def test_defaults_to_utc_when_tz_unset_or_empty(self):
+        for env in ({"GITHUB_USER": "u", "GH_TOKEN": "t"}, {"GITHUB_USER": "u", "GH_TOKEN": "t", "STREAK_TZ": ""}):
+            self.assertEqual(load_config(env), ("u", "t", timezone.utc))
+
+    def test_uses_named_timezone(self):
+        _, _, tz = load_config({"GITHUB_USER": "u", "GH_TOKEN": "t", "STREAK_TZ": "Asia/Kolkata"})
+        self.assertEqual(str(tz), "Asia/Kolkata")
+
+    def test_reports_all_missing_variables(self):
+        with self.assertRaisesRegex(SystemExit, "GITHUB_USER, GH_TOKEN"):
+            load_config({"GH_TOKEN": ""})
+
+    def test_rejects_unknown_timezone(self):
+        with self.assertRaisesRegex(SystemExit, "Unknown STREAK_TZ 'Mars/Base'"):
+            load_config({"GITHUB_USER": "u", "GH_TOKEN": "t", "STREAK_TZ": "Mars/Base"})
 
 
 if __name__ == "__main__":
