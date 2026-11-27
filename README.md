@@ -1,5 +1,7 @@
 # github-streak-widget
 
+[![Test](https://github.com/jyotir07/github-streak-widget/actions/workflows/test.yml/badge.svg)](https://github.com/jyotir07/github-streak-widget/actions/workflows/test.yml)
+
 A dark GitHub contribution-streak badge for your profile README. A daily GitHub Action queries the GraphQL API, counts your current streak and writes `dist/streak.svg`.
 
 The streak counts consecutive days with at least one contribution in GitHub's contribution calendar (commits, PRs, reviews, issues, …), so it's a contribution streak, not commit-only. A day with no contribution yet doesn't break the streak until it's over.
@@ -14,6 +16,12 @@ The streak counts consecutive days with at least one contribution in GitHub's co
 
 The username is taken from the repo owner, so nothing is hardcoded.
 
+### Reliability
+
+- Transient GitHub API failures (network errors, timeouts, HTTP 429/5xx) are retried up to 3 times with backoff. Auth and other 4xx errors fail immediately.
+- A missing `GH_TOKEN`/`GITHUB_USER` or an unknown `STREAK_TZ` fails the run with a clear message instead of a traceback.
+- The daily job rebases before pushing, so it doesn't fail if you pushed to `main` while it was running.
+
 ## Embed
 
 ```html
@@ -24,7 +32,7 @@ The username is taken from the repo owner, so nothing is hardcoded.
 
 ## Development
 
-Python 3.11, standard library only.
+Python 3.11, standard library only. Tests run on every push to `main` and on pull requests.
 
 ```bash
 python -m unittest discover -s tests
